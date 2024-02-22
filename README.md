@@ -35,7 +35,7 @@ Language.build_library(
         'tree-sitter-javascript',
         'tree-sitter-python',
         'tree-sitter-php/php',
-        'tree-sitter-php/php\_only',
+        'tree-sitter-php/php_only',
         'tree-sitter-java',
         'tree-sitter-ruby',
         'tree-sitter-c-sharp',
