@@ -5,7 +5,7 @@
 However, we have to change the build.py a little bit because the structure of project "tree-sitter-php" has changed.
 
 In detail: we need to replace the
-
+```bash
 Language.build_library(
     # Store the library in the `build` directory
     'my-languages.so',
@@ -21,9 +21,10 @@ Language.build_library(
         'tree-sitter-c-sharp',
     ]
 )
+```
 
 to 
-
+```bash
 Language.build_library(
     # Store the library in the `build` directory
     'my-languages.so',
@@ -40,5 +41,6 @@ Language.build_library(
         'tree-sitter-c-sharp',
     ]
 )
+```
 
 or it will fail to generate my-language.so.
