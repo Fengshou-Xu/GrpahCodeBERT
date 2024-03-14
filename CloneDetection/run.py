@@ -43,14 +43,15 @@ from model import Model
 cpu_cont = 16
 logger = logging.getLogger(__name__)
 
-from parser import DFG_python, DFG_java, DFG_ruby, DFG_go, DFG_php, DFG_javascript
+from parser import DFG_python, DFG_java, DFG_ruby, DFG_go, DFG_php, DFG_javascript  # we need to add llvm here (huge
+# amount of work)
 from parser import (remove_comments_and_docstrings,
                     tree_to_token_index,
                     index_to_code_token,
                     tree_to_variable_index)
 from tree_sitter import Language, Parser
 
-dfg_function = {
+dfg_function = {  # where we define the language of the code, we need to add llvm here
     'python': DFG_python,
     'java': DFG_java,
     'ruby': DFG_ruby,
@@ -69,13 +70,13 @@ for lang in dfg_function:
     parsers[lang] = parser
 
 
-# remove comments, tokenize code and extract dataflow
+# Designed to remove annotations from a given code snippet, perform tokenization, and extract data flow information.
 def extract_dataflow(code, parser, lang):
     # remove comments
     try:
         code = remove_comments_and_docstrings(code, lang)
     except:
-        pass
+        pass  # really? bad code
         # obtain dataflow
     if lang == "php":
         code = "<?php" + code + "?>"
@@ -89,7 +90,7 @@ def extract_dataflow(code, parser, lang):
         for idx, (index, code) in enumerate(zip(tokens_index, code_tokens)):
             index_to_code[index] = (idx, code)
         try:
-            DFG, _ = parser[1](root_node, index_to_code, {})
+            DFG, _ = parser[1](root_node, index_to_code, {})  # where we create the data flow graph
         except:
             DFG = []
         DFG = sorted(DFG, key=lambda x: x[1])
@@ -106,11 +107,13 @@ def extract_dataflow(code, parser, lang):
         dfg = new_DFG
     except:
         dfg = []
-    return code_tokens, dfg
+    return code_tokens, dfg  # dangerous design : code_tokens could be null
 
 
+# for encapsulating input data associated with machine learning or deep learning models
+# 用于封装与机器学习或深度学习模型相关的输入数据的类
 class InputFeatures(object):
-    """A single training/test features for a example."""
+    """A single training/test features for an example."""
 
     def __init__(self,
                  input_tokens_1,
@@ -150,15 +153,15 @@ class InputFeatures(object):
 
 def convert_examples_to_features(item):
     # source
-    url1, url2, label, tokenizer, args, cache, url_to_code = item
-    parser = parsers['java']
+    url1, url2, label, tokenizer, args, cache, url_to_code = item  # Unpacking Assignment
+    parser = parsers['java']  # is here where we define the language of the code?
 
     for url in [url1, url2]:
         if url not in cache:
             func = url_to_code[url]
 
             # extract data flow
-            code_tokens, dfg = extract_dataflow(func, parser, 'java')
+            code_tokens, dfg = extract_dataflow(func, parser, 'java')  # here we define the language of the code
             code_tokens = [tokenizer.tokenize('@ ' + x)[1:] if idx != 0 else tokenizer.tokenize(x) for idx, x in
                            enumerate(code_tokens)]
             ori2cur_pos = {}
@@ -201,6 +204,12 @@ def convert_examples_to_features(item):
                          label, url1, url2)
 
 
+# 被多次复用
+# 参数不定：
+#     --train_data_file=dataset/train.txt \
+#     --eval_data_file=dataset/valid.txt \
+#     --test_data_file=dataset/test.txt \
+#     应该都是给这个函数的参数
 class TextDataset(Dataset):
     def __init__(self, tokenizer, args, file_path='train'):
         self.examples = []
@@ -214,7 +223,7 @@ class TextDataset(Dataset):
             for line in f:
                 line = line.strip()
                 js = json.loads(line)
-                url_to_code[js['idx']] = js['func']
+                url_to_code[js['idx']] = js['func']  # here we need to modify for llvm ?
 
         # load code function according to index
         data = []
@@ -237,14 +246,16 @@ class TextDataset(Dataset):
             data = random.sample(data, int(len(data) * 0.1))
 
         # convert example to input features
-        self.examples = [convert_examples_to_features(x) for x in tqdm(data, total=len(data))]
+        self.examples = [convert_examples_to_features(x) for x in tqdm(data, total=len(data))]  # 结合上下文，这行代码的作用是将data
+        # 中的每个样本通过convert_examples_to_features函数转换成模型需要的输入格式，并利用tqdm显示这一转换过程的进度。
 
         if 'train' in file_path:
             for idx, example in enumerate(self.examples[:3]):
                 logger.info("*** Example ***")
                 logger.info("idx: {}".format(idx))
                 logger.info("label: {}".format(example.label))
-                logger.info("input_tokens_1: {}".format([x.replace('\u0120', '_') for x in example.input_tokens_1]))
+                logger.info("input_tokens_1: {}".format(
+                    [x.replace('\u0120', '_') for x in example.input_tokens_1]))  # I don't understand this line
                 logger.info("input_ids_1: {}".format(' '.join(map(str, example.input_ids_1))))
                 logger.info("position_idx_1: {}".format(example.position_idx_1))
                 logger.info("dfg_to_code_1: {}".format(' '.join(map(str, example.dfg_to_code_1))))
@@ -315,7 +326,8 @@ class TextDataset(Dataset):
                 torch.tensor(self.examples[item].label))
 
 
-def set_seed(args):
+def set_seed(args):  # 设置随机种子 用于复现
+    # set seed for reproducibility
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -328,6 +340,7 @@ def train(args, train_dataset, model, tokenizer):
 
     # build dataloader
     train_sampler = RandomSampler(train_dataset)
+    # 使用RandomSampler和DataLoader构建训练数据的迭代器，以随机的方式抽取批量数据，其中批大小由args.train_batch_size指定。
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size, num_workers=4)
 
     args.max_steps = args.epochs * len(train_dataloader)
@@ -360,7 +373,7 @@ def train(args, train_dataset, model, tokenizer):
     logger.info("  Total optimization steps = %d", args.max_steps)
 
     global_step = 0
-    tr_loss, logging_loss, avg_loss, tr_nb, tr_num, train_loss = 0.0, 0.0, 0.0, 0, 0, 0
+    tr_loss, logging_loss, avg_loss, tr_nb, tr_num, train_loss = 0.0, 0.0, 0.0, 0, 0, 0 # not sure what is tr_loss
     best_f1 = 0
 
     model.zero_grad()
@@ -587,22 +600,11 @@ def main():
 
     args = parser.parse_args()
 
-    #Setup CUDA, GPU
+    # Setup CUDA, GPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args.n_gpu = torch.cuda.device_count()
 
     args.device = device
-
-    #set up MPS for m2
-    # import torch
-    # device = None
-    # if torch.backends.mps.is_available():
-    #     device = torch.device('mps')
-    #     x = torch.ones(1, device=device)
-    #     print(x)
-    # else:
-    #     print("MPS device not found")
-    # args.device = device
 
     # Setup logging
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
