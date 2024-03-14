@@ -1,4 +1,4 @@
-1. `my-language.so` doesn't work on arm MacOS. Need to rebuild it through:
+1. `my-language.so` doesn't work on arm MacOS (YOU STILL CANNOT RUN IT ON MACOS WITH M CHIP) (But the following modification is necessarily).  Need to rebuild it through:
    ```bash
    bash build.sh --> build.py
 
